@@ -3,6 +3,8 @@ import { FormGroup, FormBuilder, Validators, AbstractControl, ValidatorFn } from
 
 import { Customer } from './customer';
 
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+
 function emailMatcher(c: AbstractControl): { [key: string]: boolean }{
     const emailControl = c.get('email');
     const confirmControl = c.get('confirmEmail');
@@ -36,6 +38,14 @@ function ratingRange(min: number, max: number): ValidatorFn {
     templateUrl: './customer.component.html'
 })
 export class CustomerComponent implements OnInit  {
+
+    emailMessage: string;
+
+    private validationMessages = {
+        required: 'Please enter your email address.',
+        email: 'Please enter a valid email address.'
+    };
+
     customerForm: FormGroup;
     customer: Customer= new Customer();
 
@@ -57,11 +67,28 @@ export class CustomerComponent implements OnInit  {
             phone: '',
             rating: [null, ratingRange(1, 5)],
             notification: 'email',
-            sendCatalog: true
+            sendCatalog: true,
+            addressType: 'home',
+            street1: '',
+            street2: '',
+            city: '',
+            state: '',
+            zip: ''
         });
 
         this.customerForm.get('notification').valueChanges.subscribe(
             value => this.setNotification(value)
+        );
+
+        const emailControl = this.customerForm.get('emailGroup.email');
+        emailControl.valueChanges.pipe(
+            debounceTime(1000),
+            distinctUntilChanged()
+        ).subscribe(
+            value => {
+                console.log('Entro');
+                this.setMessage(emailControl);
+            } 
         );
     }
 
@@ -88,6 +115,15 @@ export class CustomerComponent implements OnInit  {
         }
 
         phoneControl.updateValueAndValidity();
+    }
+
+    setMessage(c: AbstractControl): void {
+        this.emailMessage = '';
+        if((c.touched || c.dirty) && c.errors){
+            this.emailMessage = Object.keys(c.errors).map(
+                key => this.emailMessage += this.validationMessages[key]
+            ).join(' ');
+        }
     }
 
  }
